@@ -427,7 +427,7 @@ function sideHtml(st) {
     </div>
     <div class="card">
       <h3>거래소 소식</h3>
-      <ul class="log">${st.events.map(e => `<li><b>R${e.round ?? '-'}</b>${esc(e.msg)}</li>`).join('')}</ul>
+      <ul class="log">${st.events.slice(0, 6).map(e => `<li><b>R${e.round ?? '-'}</b>${esc(e.msg)}</li>`).join('')}</ul>
     </div>`;
 }
 const deltaHtml = d => (d == null ? '<span class="dl flat">·</span>' : d > 0 ? `<span class="dl up">▲${d}</span>` : d < 0 ? `<span class="dl down">▼${-d}</span>` : '<span class="dl flat">–</span>');
