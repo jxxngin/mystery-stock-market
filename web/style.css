@@ -119,8 +119,9 @@ h3 small, h4 small { color: var(--muted); font-weight: 400; font-size: 12px; }
 .ii-row span { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .ii-row b { font-family: var(--mono); color: var(--gold); }
 .items-info p { margin: 4px 0 0; }
-.on { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
-.on.off { background: #555; }
+/* 접속 표시 점: i 요소에만 적용 (.srow.on, .seg-b.on, .btn.vote.on 같은 '선택됨' 상태와 충돌 방지) */
+i.on { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+i.on.off { background: #555; }
 
 /* HUD (상단 고정) */
 .hud { position: sticky; top: 0; z-index: 20; background: var(--hud); border-bottom: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,.4); }
