@@ -190,16 +190,37 @@ function renderLobby(st) {
         <li><i class="on ${p.online ? '' : 'off'}"></i><span class="nm">${esc(p.name)}</span>${p.host ? '<span class="tag-host">방장</span>' : ''}${p.id === st.me.id ? '<small class="muted">나</small>' : ''}</li>`).join('')}
       </ul>
     </div>
-    <div class="card items-info">
-      <h3>이번 판 아이템 <small>${n}명 기준 · 시작할 때 지급</small></h3>
-      <div class="ii-row"><span>${I.search} 정보 토큰</span><b>${itemsFor(n).tokens}개</b></div>
-      <div class="ii-row"><span>${I.eyeOff} 시크릿</span><b>${itemsFor(n).secrets}개</b></div>
-      <p class="muted small">3~4명: 토큰 3 · 시크릿 2 / 5~9명: 토큰 2 · 시크릿 1 / 10명 이상: 토큰 1 · 시크릿 1</p>
-    </div>
+    ${itemsCard(st, n)}
     ${st.room.is_host
       ? `<button class="btn primary big" data-act="start" ${n < 3 ? 'disabled' : ''}>${n < 3 ? `게임 시작 (최소 3명, ${3 - n}명 더 필요)` : '게임 시작'}</button>`
       : `<p class="muted center">방장이 게임을 시작하길 기다리는 중…</p>`}
   </main>`;
+}
+
+// 로비 아이템 카드: 방장은 개수를 직접 정할 수 있고, '자동'이면 인원별 기준
+function itemCfg(st, n) {
+  const auto = itemsFor(n);
+  const t = st.room.cfg_tokens, s = st.room.cfg_secrets;
+  return { tokens: t ?? auto.tokens, secrets: s ?? auto.secrets, custom: t != null || s != null };
+}
+function itemsCard(st, n) {
+  const c = itemCfg(st, n);
+  const host = st.room.is_host;
+  const row = (k, icon, label) => `
+    <div class="ii-row"><span>${icon} ${label}</span>
+      ${host ? `<span class="ii-step">
+        <button class="qs sm" data-act="cfg" data-k="${k}" data-d="-1" aria-label="${label} 줄이기" ${c[k] <= 0 ? 'disabled' : ''}>−</button>
+        <b>${c[k]}개</b>
+        <button class="qs sm" data-act="cfg" data-k="${k}" data-d="1" aria-label="${label} 늘리기" ${c[k] >= 5 ? 'disabled' : ''}>+</button>
+      </span>` : `<b>${c[k]}개</b>`}
+    </div>`;
+  return `<div class="card items-info">
+    <h3>이번 판 아이템 <small>${c.custom ? '방장 설정' : `${n}명 기준 자동`} · 시작할 때 지급</small></h3>
+    ${row('tokens', I.search, '정보 토큰')}
+    ${row('secrets', I.eyeOff, '시크릿')}
+    ${host ? `<div class="ii-foot"><span class="muted small">각각 0~5개로 정할 수 있어요</span>${c.custom ? '<button class="link" data-act="cfg-auto">인원별 자동으로 되돌리기</button>' : ''}</div>` : ''}
+    <p class="muted small">자동 기준 · 3~4명: 토큰 3 · 시크릿 2 / 5~9명: 토큰 2 · 시크릿 1 / 10명 이상: 토큰 1 · 시크릿 1</p>
+  </div>`;
 }
 
 // ───────── 게임 화면 ─────────
@@ -637,7 +658,7 @@ function openRules() {
     <ul>
       <li>각 종목은 숨겨진 규칙으로 움직여요. 규칙 문장은 <b>□□</b>로 가려져 있다가 <b>5 · 10 · 15라운드</b>에 조금씩, <b>20라운드</b>에 전부 공개됩니다.</li>
       <li><b>영향력이 작은 단어부터</b> 열리고, 결정적인 단어(참조 종목·오르면/내리면·기준값)는 가장 늦게 열려요.</li>
-      <li>매 판 <b>10가지 규칙 중 7개</b>가 뽑혀 종목에 <b>랜덤 배정</b>돼요. 수치와 참조 종목도 매번 달라요. 지난 판 정답은 소용없어요!</li>
+      <li>매 판 <b>15가지 규칙 중 7개</b>가 뽑혀 종목에 <b>랜덤 배정</b>돼요. 수치와 참조 종목도 매번 달라요. 지난 판 정답은 소용없어요!</li>
       <li>보유 총량 = 모든 플레이어가 가진 주식 수 합계 · 매수량/매도량 = 이번 라운드에 사고판 주식 수 합계 · 보유자 = 1주 이상 가진 사람 수.</li>
     </ul>
     <h4>아이템</h4>
@@ -645,7 +666,7 @@ function openRules() {
       <tr><td>시크릿</td><td>한 종목의 정보를 다음 라운드부터 2라운드 동안 모두에게 가림. 누가 썼는지는 비밀.</td></tr>
       <tr><td>정보 토큰</td><td>한 종목의 점선 □(다음 공개분)를 미리 열기, 또는 현금 10,000원으로 환전. 19라운드까지.</td></tr>
     </table>
-    <h4>인원별 아이템 개수</h4>
+    <h4>인원별 아이템 개수 <small class="muted">(방장이 로비에서 0~5개로 직접 정할 수도 있어요)</small></h4>
     <table>
       <tr><td>3~4명</td><td>정보 토큰 3개 · 시크릿 2개</td></tr>
       <tr><td>5~9명</td><td>정보 토큰 2개 · 시크릿 1개</td></tr>
@@ -712,6 +733,15 @@ async function act(name, ds) {
       return logout();
     case 'leave-confirmed': return logout();
     case 'start': await rpc('start_game', auth()); return refresh();
+    case 'cfg': {
+      const c = itemCfg(st, st.players.length);
+      c[ds.k] = Math.max(0, Math.min(5, c[ds.k] + Number(ds.d)));
+      await rpc('set_items', { ...auth(), p_tokens: c.tokens, p_secrets: c.secrets });
+      return refresh();
+    }
+    case 'cfg-auto':
+      await rpc('set_items', { ...auth(), p_tokens: null, p_secrets: null });
+      return refresh();
     case 'vote': await rpc('set_vote', { ...auth(), p_vote: !st.me.vote }); return refresh();
     case 'force':
       if (!confirm('이번 라운드를 강제로 마감할까요?')) return;

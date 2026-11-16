@@ -124,6 +124,11 @@ h3 small, h4 small { color: var(--muted); font-weight: 400; font-size: 12px; }
 .ii-row span { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .ii-row b { font-family: var(--mono); color: var(--gold); }
 .items-info p { margin: 4px 0 0; }
+.ii-step { display: flex; align-items: center; gap: 10px; }
+.ii-step b { min-width: 36px; text-align: center; }
+.qs.sm { min-height: 36px; width: 36px; font-size: 18px; color: var(--text); }
+.ii-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ii-foot .link { padding: 6px 0; min-height: 36px; }
 /* 접속 표시 점: i 요소에만 적용 (.srow.on, .seg-b.on, .btn.vote.on 같은 '선택됨' 상태와 충돌 방지) */
 i.on { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
 i.on.off { background: #555; }
