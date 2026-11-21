@@ -25,6 +25,7 @@ RULES.md    게임 규칙 명세
 3. `supabase/v3_state.sql` — 라운드별 기록, 시크릿 남은 라운드, 순위 변동
 4. `supabase/v4_item_counts.sql` — 인원별 아이템 개수
 5. `supabase/v5_new_mechanics.sql` — 메커니즘 15종 · 새 모양 · 방장 아이템 설정
+6. `supabase/v6_lobby_chat.sql` — 대기방 채팅 (게임 시작 시 삭제)
 
 그다음 `web/app.js` 상단의 `SB_URL`, `SB_KEY`를 해당 프로젝트의 URL과 anon(publishable) 키로 바꿉니다.
 

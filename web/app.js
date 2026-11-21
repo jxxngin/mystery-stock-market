@@ -136,7 +136,7 @@ function render(force = false) {
   if (!force && key === S.lastKey) { updateLive(); return; }
   S.lastKey = key;
   const status = st.room.status;
-  if (status !== 'playing') { S.mounted = null; document.body.classList.remove('sheet-open'); }
+  if (status !== 'playing') document.body.classList.remove('sheet-open');
   if (status === 'lobby') renderLobby(st);
   else if (status === 'playing') renderGame(st);
   else renderResult(st);
@@ -175,10 +175,50 @@ function renderHome() {
   </main>`;
 }
 
+// 대기방: 채팅 입력칸이 폴링 갱신으로 지워지지 않도록 뼈대는 한 번만 만들고 부분만 갱신한다
 function renderLobby(st) {
+  if (S.mounted !== 'lobby') {
+    $app.innerHTML = `${topbar(st)}
+    <main class="lobby">
+      <div id="lb-main" class="lb-main"></div>
+      <section class="card chat" aria-label="대기방 채팅">
+        <h3>대기방 채팅 <small>게임이 시작되면 사라져요</small></h3>
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form">
+          <label class="sr" for="chat-in">메시지</label>
+          <input id="chat-in" maxlength="200" placeholder="메시지를 입력하세요" autocomplete="off">
+          <button class="btn primary" type="submit">보내기</button>
+        </form>
+      </section>
+    </main>`;
+    S.mounted = 'lobby';
+    S.chatKey = '';
+  }
+  $('#lb-main').innerHTML = lobbyMainHtml(st);
+  renderChat(st.chat || [], st);
+}
+
+function renderChat(list, st) {
+  const key = list.map(m => m.id).join(',');
+  if (key === S.chatKey) return;
+  const log = $('#chat-log');
+  const first = S.chatKey === '';
+  const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+  const mineLast = list.length && list[list.length - 1].me;
+  S.chatKey = key;
+  log.innerHTML = list.length
+    ? list.map(m => {
+        const t = new Date(m.at);
+        const hm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        return `<div class="msg ${m.me ? 'me' : ''}"><div class="msg-h"><b>${esc(m.name)}</b><time>${hm}</time></div><p>${esc(m.msg)}</p></div>`;
+      }).join('')
+    : `<p class="muted small chat-empty">아직 메시지가 없어요. 먼저 인사해 보세요!</p>`;
+  if (first || nearBottom || mineLast) log.scrollTop = log.scrollHeight;
+}
+
+function lobbyMainHtml(st) {
   const n = st.players.length;
-  $app.innerHTML = `${topbar(st)}
-  <main class="lobby">
+  return `
     <div class="card center">
       <div class="muted">방 코드</div>
       <div class="code">${esc(st.room.code)}</div>
@@ -193,8 +233,7 @@ function renderLobby(st) {
     ${itemsCard(st, n)}
     ${st.room.is_host
       ? `<button class="btn primary big" data-act="start" ${n < 3 ? 'disabled' : ''}>${n < 3 ? `게임 시작 (최소 3명, ${3 - n}명 더 필요)` : '게임 시작'}</button>`
-      : `<p class="muted center">방장이 게임을 시작하길 기다리는 중…</p>`}
-  </main>`;
+      : `<p class="muted center">방장이 게임을 시작하길 기다리는 중…</p>`}`;
 }
 
 // 로비 아이템 카드: 방장은 개수를 직접 정할 수 있고, '자동'이면 인원별 기준
@@ -569,6 +608,7 @@ function closeReveal() { const el = $('#reveal'); if (el) el.classList.remove('o
 
 // ───────── 결과 화면 ─────────
 function renderResult(st) {
+  S.mounted = 'result';
   const rk = st.ranking;
   const top = [rk[1], rk[0], rk[2]];
   const assets = (st.final?.assets || []).map((a, i) => ({ name: a.name, color: PLAYER_COLORS[i % PLAYER_COLORS.length], values: a.series }));
@@ -794,6 +834,21 @@ document.addEventListener('click', async e => {
   try { await act(name, b.dataset); }
   catch (err) { toast(err.message || '오류가 발생했어요', 'err'); }
   finally { if (!instant) S.busy = false; }
+});
+
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'chat-form') return;
+  e.preventDefault();
+  const inp = $('#chat-in');
+  const msg = inp.value.trim();
+  if (!msg || S.chatSending) return;
+  S.chatSending = true;
+  try {
+    await rpc('send_chat', { ...auth(), p_msg: msg });
+    inp.value = '';
+    await refresh();
+  } catch (err) { toast(err.message || '메시지를 보내지 못했어요', 'err'); }
+  finally { S.chatSending = false; inp.focus(); }
 });
 
 document.addEventListener('input', e => {
