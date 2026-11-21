@@ -744,7 +744,7 @@ async function act(name, ds) {
       return updateTicket();
     case 'q-step': {
       const inp = $('#q-in');
-      inp.value = Math.max(1, (Math.floor(Number(inp.value)) || 0) + Number(ds.d));
+      inp.value = Math.max(1, (Math.floor(Number(inp.value)) || 0) + Number(ds.d));  // 상한 없음: 현금·보유량은 미리보기와 서버가 검사
       return updateTicket();
     }
     case 'q-frac': {
