@@ -274,6 +274,7 @@ i.on.off { background: #555; }
 .preview span { color: var(--muted); }
 .preview b { font-family: var(--mono); font-weight: 500; }
 .preview b.warn { color: var(--up); }
+.preview .pv-note { grid-column: 1 / -1; display: block; color: var(--sec); font-size: 12px; line-height: 1.5; }
 .btn.go { min-height: 52px; font-size: 16px; background: var(--up-bg); border-color: var(--up-bd); color: var(--up); }
 .ticket.is-sell .btn.go { background: var(--down-bg); border-color: var(--down-bd); color: var(--down); }
 

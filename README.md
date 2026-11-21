@@ -29,6 +29,7 @@ RULES.md    게임 규칙 명세
 7. `supabase/v7_early_end.sql` — 전원 동의 시 게임 조기 종료
 8. `supabase/v8_secret_history.sql` — 시크릿 라운드 기록을 게임 끝까지 가림
 9. `supabase/v9_kick.sql` — 방장의 대기방 내보내기
+10. `supabase/v10_trade_frac.sql` — 비율 매수 (가격이 가려진 종목의 1/4 · 절반 · 전부)
 
 그다음 `web/app.js` 상단의 `SB_URL`, `SB_KEY`를 해당 프로젝트의 URL과 anon(publishable) 키로 바꿉니다.
 

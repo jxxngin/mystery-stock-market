@@ -449,10 +449,13 @@ function updateTicket() {
   const amount = s.price == null ? null : q * s.price;
   const after = amount == null ? null : S.mode === 'buy' ? st.me.cash - amount : st.me.cash + amount;
   const over = max != null && q > max;
-  document.querySelectorAll('[data-act="q-frac"]').forEach(b => { b.disabled = max == null || max <= 0; });
+  // 가격이 가려진 종목의 매수는 서버가 수량을 계산하므로 현금만 있으면 비율 버튼을 켠다
+  const serverFrac = S.mode === 'buy' && s.price == null;
+  document.querySelectorAll('[data-act="q-frac"]').forEach(b => { b.disabled = serverFrac ? st.me.cash <= 0 : (max == null || max <= 0); });
   $('#t-prev').innerHTML = `
     <div><span>보유</span><b>${held}주</b></div>
     <div><span>최대 ${S.mode === 'buy' ? '매수' : '매도'}</span><b>${max == null ? '가격 비공개' : max + '주'}</b></div>
+    ${serverFrac ? '<div class="pv-note">가격이 가려져 있어요. 1/4 · 절반 · 전부를 누르면 남은 현금 기준으로 살 수 있는 만큼 바로 매수해요.</div>' : ''}
     <div><span>예상 금액</span><b>${amount == null ? '체결 후 확인' : won(amount)}</b></div>
     <div><span>거래 후 현금</span><b class="${over ? 'warn' : ''}">${after == null ? '???' : won(after)}</b></div>`;
   const go = $('#t-go');
@@ -746,6 +749,19 @@ async function act(name, ds) {
     }
     case 'q-frac': {
       const s = stockOf(st, S.sel);
+      if (S.mode === 'buy' && s.price == null) {
+        // 시크릿으로 가격이 가려진 종목: 서버가 실제 가격으로 수량을 계산해 바로 매수
+        const label = { '0.25': '1/4', '0.5': '절반', '1': '전부' }[ds.f] || ds.f;
+        if (!confirm(`${s.name}은(는) 가격이 가려져 있어요.\n남은 현금 ${won(st.me.cash)}의 ${label}로 살 수 있는 만큼 바로 매수할까요?`)) return;
+        if (S.busy) return;
+        S.busy = true;
+        try {
+          const q = await rpc('trade_frac', { ...auth(), p_stock: s.name, p_frac: Number(ds.f) });
+          toast(`${s.name} ${q}주 매수 완료`, 'ok');
+          await refresh();
+        } finally { S.busy = false; }
+        return;
+      }
       const max = ticketMax(st, s);
       if (!max) return;
       $('#q-in').value = Math.max(1, Math.floor(max * Number(ds.f)));
