@@ -109,7 +109,10 @@ async function refresh() {
     }
     render();
   } catch (e) {
-    if (String(e.message).includes('인증 실패')) {
+    if (String(e.message).includes('내보냈어요')) {
+      logout();
+      toast('방장이 방에서 내보냈어요', 'err');
+    } else if (String(e.message).includes('인증 실패')) {
       logout();
       toast('세션이 만료됐어요. 다시 입장해주세요', 'err');
     } else {
@@ -227,7 +230,7 @@ function lobbyMainHtml(st) {
     <div class="card">
       <h3>참가자 <small>${n}/12</small></h3>
       <ul class="plist">${st.players.map(p => `
-        <li><i class="on ${p.online ? '' : 'off'}"></i><span class="nm">${esc(p.name)}</span>${p.host ? '<span class="tag-host">방장</span>' : ''}${p.id === st.me.id ? '<small class="muted">나</small>' : ''}</li>`).join('')}
+        <li><i class="on ${p.online ? '' : 'off'}"></i><span class="nm">${esc(p.name)}</span>${p.host ? '<span class="tag-host">방장</span>' : ''}${p.id === st.me.id ? '<small class="muted">나</small>' : ''}${st.room.is_host && p.id !== st.me.id ? `<button class="kick" data-act="kick" data-id="${p.id}" data-name="${esc(p.name)}" aria-label="${esc(p.name)} 내보내기" title="내보내기">${I.close}</button>` : ''}</li>`).join('')}
       </ul>
     </div>
     ${itemsCard(st, n)}
@@ -330,6 +333,7 @@ function hudHtml(st) {
       <span class="sp"></span>
       <div id="live" class="live"></div>
       <button class="btn vote ${me.vote ? 'on' : ''}" data-act="vote">${me.vote ? `${I.check} 투표함` : '종료 투표'}<span class="vc">${votes.votes}/${votes.need}</span></button>
+      <button class="btn ghost sm gvote ${me.end_game_vote ? 'on' : ''}" data-act="gvote" title="접속 중인 전원이 동의하면 지금 순위로 게임이 끝나요">${me.end_game_vote ? `${I.check} 끝내기 동의` : '게임 끝내기'}<span class="vc">${votes.game_votes ?? 0}/${votes.active}</span></button>
       ${room.is_host ? `<button class="btn ghost sm force" data-act="force">강제 종료</button>` : ''}
     </div>
     <div class="hud-r2">
@@ -359,7 +363,7 @@ function rowHtml(s, st) {
     <i class="bar"></i>
     <span class="sr-name"><b>${s.name}</b><small>${sub}</small></span>
     ${spark(s.name, st.history, 72, 28)}
-    <span class="sr-price"><b>${s.hidden ? '???' : fmt(s.price)}</b><small class="${chgCls(s.change)}">${s.hidden ? '' : s.change > 0 ? `▲ ${pct.toFixed(1)}%` : s.change < 0 ? `▼ ${Math.abs(pct).toFixed(1)}%` : '— 0%'}</small></span>
+    <span class="sr-price"><b>${s.hidden ? '???' : fmt(s.price)}</b><small class="${chgCls(s.change)}">${s.hidden ? '' : s.change == null ? '비공개' : s.change > 0 ? `▲ ${pct.toFixed(1)}%` : s.change < 0 ? `▼ ${Math.abs(pct).toFixed(1)}%` : '— 0%'}</small></span>
     <span class="sr-mine">${q ? `${q}주` : ''}</span>
   </button>`;
 }
@@ -367,7 +371,7 @@ function rowHtml(s, st) {
 function renderDetail(st) {
   const s = stockOf(st, S.sel);
   const pct = pctOf(s.price, s.change);
-  const chText = s.hidden ? '' : s.change > 0 ? `▲ ${fmt(s.change)} (+${pct.toFixed(1)}%)` : s.change < 0 ? `▼ ${fmt(-s.change)} (${pct.toFixed(1)}%)` : '— 0 (0.0%)';
+  const chText = s.hidden ? '' : s.change == null ? '등락 비공개 (직전 라운드 시크릿)' : s.change > 0 ? `▲ ${fmt(s.change)} (+${pct.toFixed(1)}%)` : s.change < 0 ? `▼ ${fmt(-s.change)} (${pct.toFixed(1)}%)` : '— 0 (0.0%)';
   $('#detail').style.setProperty('--c', STOCK_COLORS[s.name]);
   $('#d-head').innerHTML = `
     <div class="dh">
@@ -482,7 +486,7 @@ function sideHtml(st) {
     <div class="card">
       <h3>플레이어 <small>종료 투표 ${votes.votes}/${votes.need} · 접속 ${votes.active}명</small></h3>
       <div class="players">${st.players.map(p => `
-        <span class="pchip ${p.vote ? 'voted' : ''}"><i class="on ${p.online ? '' : 'off'}"></i>${esc(p.name)}${p.host ? ' <small>방장</small>' : ''}${p.vote ? `<span class="ck">${I.check}</span>` : ''}</span>`).join('')}
+        <span class="pchip ${p.vote ? 'voted' : ''}"><i class="on ${p.online ? '' : 'off'}"></i>${esc(p.name)}${p.host ? ' <small>방장</small>' : ''}${p.vote ? `<span class="ck">${I.check}</span>` : ''}${p.gvote ? '<small class="gv">끝내기</small>' : ''}</span>`).join('')}
       </div>
     </div>
     <div class="card">
@@ -616,6 +620,7 @@ function renderResult(st) {
   $app.innerHTML = `${topbar(st)}
   <main class="result">
     <h2>최종 결과</h2>
+    ${st.room.final_round != null && st.room.final_round < 24 ? `<p class="early-end">R${st.room.final_round} 종료 시점에서 전원 동의로 게임을 조기 종료했어요</p>` : ''}
     <div class="podium">${top.map((r, j) => r ? `
       <div class="pod p${[2, 1, 3][j]}"><div class="medal">${[2, 1, 3][j]}</div><div class="nm">${esc(r.name)}</div><div class="as">${won(r.asset)}</div></div>` : '<div></div>').join('')}
     </div>
@@ -693,6 +698,7 @@ function openRules() {
     <ul>
       <li>접속자 <b>70% 이상</b>이 [종료 투표]를 누르면 <b>5~10초 뒤</b>(정확한 시간은 비밀) 마감돼요.</li>
       <li>라운드 시작 후 3분이 지나면 자동으로 마감이 시작됩니다. 방장은 강제 종료할 수 있어요.</li>
+      <li><b>게임 끝내기</b>: 접속 중인 <b>전원</b>이 동의하면 24라운드 전이라도 마지막으로 끝난 라운드의 순위로 게임이 끝나요.</li>
     </ul>
     <h4>숨겨진 규칙</h4>
     <ul>
@@ -703,7 +709,7 @@ function openRules() {
     </ul>
     <h4>아이템</h4>
     <table>
-      <tr><td>시크릿</td><td>한 종목의 정보를 다음 라운드부터 2라운드 동안 모두에게 가림. 누가 썼는지는 비밀.</td></tr>
+      <tr><td>시크릿</td><td>한 종목의 정보를 다음 라운드부터 2라운드 동안 모두에게 가림. 가려진 라운드는 게임이 끝날 때까지 기록에서도 계속 가려져요. 누가 썼는지는 비밀.</td></tr>
       <tr><td>정보 토큰</td><td>한 종목의 점선 □(다음 공개분)를 미리 열기, 또는 현금 10,000원으로 환전. 19라운드까지.</td></tr>
     </table>
     <h4>인원별 아이템 개수 <small class="muted">(방장이 로비에서 0~5개로 직접 정할 수도 있어요)</small></h4>
@@ -779,10 +785,19 @@ async function act(name, ds) {
       await rpc('set_items', { ...auth(), p_tokens: c.tokens, p_secrets: c.secrets });
       return refresh();
     }
+    case 'kick':
+      if (!confirm(`${ds.name} 님을 방에서 내보낼까요?\n같은 이름으로는 이 방에 다시 들어올 수 없어요.`)) return;
+      await rpc('kick_player', { ...auth(), p_target: ds.id });
+      toast(`${ds.name} 님을 내보냈어요`, 'ok');
+      return refresh();
     case 'cfg-auto':
       await rpc('set_items', { ...auth(), p_tokens: null, p_secrets: null });
       return refresh();
     case 'vote': await rpc('set_vote', { ...auth(), p_vote: !st.me.vote }); return refresh();
+    case 'gvote':
+      if (!st.me.end_game_vote && !confirm('게임 조기 종료에 동의할까요?\n접속 중인 전원이 동의하면 마지막으로 끝난 라운드의 순위로 바로 게임이 끝나요.')) return;
+      await rpc('set_endgame_vote', { ...auth(), p_vote: !st.me.end_game_vote });
+      return refresh();
     case 'force':
       if (!confirm('이번 라운드를 강제로 마감할까요?')) return;
       await rpc('force_end', auth());
@@ -876,6 +891,32 @@ document.addEventListener('keydown', e => {
 window.addEventListener('resize', () => {
   if (S.mounted === 'game') document.body.classList.toggle('sheet-open', S.sheetOpen && isNarrow());
 });
+
+// ───────── 새 버전 감지 ─────────
+// 화면 코드(app.js)는 처음 한 번만 받으므로, 배포 후에도 열려 있던 탭은 옛 화면을 계속 보여준다.
+// 1분마다 app.js의 ETag를 확인해 바뀌면 대기방·홈·결과에서는 자동 새로고침, 게임 중에는 안내 띄우기.
+let BUILD_ETAG = null;
+async function checkVersion() {
+  try {
+    const res = await fetch('app.js', { method: 'HEAD', cache: 'no-store' });
+    const tag = res.headers.get('etag');
+    if (!tag) return;
+    if (!BUILD_ETAG) { BUILD_ETAG = tag; return; }
+    if (tag !== BUILD_ETAG) onNewVersion();
+  } catch {}
+}
+function onNewVersion() {
+  const playing = S.state && S.state.room.status === 'playing';
+  const typing = ($('#chat-in')?.value || '').trim() !== '';
+  if (!playing && !typing) { location.reload(); return; }
+  if ($('#update-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'update-bar';
+  bar.innerHTML = `<span>새 버전이 있어요</span><button class="btn primary sm" type="button" onclick="location.reload()">새로고침</button>`;
+  document.body.appendChild(bar);
+}
+setInterval(checkVersion, 60000);
+checkVersion();
 
 // ───────── 시작 ─────────
 (function init() {
